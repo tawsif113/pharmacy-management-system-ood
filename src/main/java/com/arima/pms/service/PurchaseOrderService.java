@@ -2,12 +2,10 @@ package com.arima.pms.service;
 
 import com.arima.pms.domain.entity.Product;
 import com.arima.pms.domain.entity.PurchaseOrder;
-import com.arima.pms.domain.entity.PurchaseOrderItem;
 import com.arima.pms.domain.entity.Supplier;
 import com.arima.pms.domain.entity.User;
 import com.arima.pms.domain.enums.PurchaseOrderStatus;
 import com.arima.pms.repository.ProductRepository;
-import com.arima.pms.repository.PurchaseOrderItemRepository;
 import com.arima.pms.repository.PurchaseOrderRepository;
 import com.arima.pms.repository.SupplierRepository;
 import com.arima.pms.repository.UserRepository;
@@ -15,11 +13,8 @@ import com.arima.pms.service.command.CreatePurchaseOrderCommand;
 import com.arima.pms.service.command.PurchaseOrderLineCommand;
 import com.arima.pms.service.exception.InvalidPurchaseOrderException;
 import com.arima.pms.service.exception.ResourceNotFoundException;
-import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -36,7 +31,6 @@ public class PurchaseOrderService {
   private static final DateTimeFormatter PO_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
 
   private final PurchaseOrderRepository purchaseOrderRepository;
-  private final PurchaseOrderItemRepository purchaseOrderItemRepository;
   private final SupplierRepository supplierRepository;
   private final UserRepository userRepository;
   private final ProductRepository productRepository;
@@ -69,8 +63,6 @@ public class PurchaseOrderService {
     purchaseOrder.setCreatedBy(createdBy);
 
     Set<UUID> seenProductIds = new HashSet<>();
-    List<PurchaseOrderItem> items = new ArrayList<>();
-    BigDecimal totalEstimatedCost = BigDecimal.ZERO;
 
     for (PurchaseOrderLineCommand line : command.lines()) {
       validateLine(line);
@@ -84,23 +76,10 @@ public class PurchaseOrderService {
         throw new InvalidPurchaseOrderException("Duplicate product in purchase order: " + product.getId());
       }
 
-      PurchaseOrderItem item = new PurchaseOrderItem();
-      item.setPurchaseOrder(purchaseOrder);
-      item.setProduct(product);
-      item.setOrderedQuantity(line.orderedQuantity());
-      item.setReceivedQuantity(0);
-      item.setUnitCost(line.unitCost());
-      items.add(item);
-
-      totalEstimatedCost = totalEstimatedCost.add(
-          line.unitCost().multiply(BigDecimal.valueOf(line.orderedQuantity()))
-      );
+      purchaseOrder.addItem(product, line.orderedQuantity(), line.unitCost());
     }
 
-    purchaseOrder.setTotalEstimatedCost(totalEstimatedCost);
-    PurchaseOrder savedPurchaseOrder = purchaseOrderRepository.save(purchaseOrder);
-    purchaseOrderItemRepository.saveAll(items);
-    return savedPurchaseOrder;
+    return purchaseOrderRepository.save(purchaseOrder);
   }
 
   private static void validateLine(PurchaseOrderLineCommand line) {

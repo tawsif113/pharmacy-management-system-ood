@@ -5,6 +5,16 @@ Date: 25th May
 ## Goal
 Build a production-minded Pharmacy Management System for a rented pharmacy business. This is not a practice toy; it should be designed for real-world traceability, inventory safety, and operational workflows.
 
+## Design principle
+This project is a case study in Object-Oriented Design (OOD). Keep the system:
+- small enough to understand
+- structured enough to scale
+- rich enough to demonstrate clean design decisions
+
+The main rule is: model the business clearly first, then implement the APIs and persistence around that object model.
+
+Reference: `/home/kazimtr/Days/25thMay/pms/docs/object-oriented-design-rule.md`
+
 ## Core Domains
 1. Catalog
    - Product master data

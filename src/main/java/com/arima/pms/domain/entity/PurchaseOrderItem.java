@@ -34,6 +34,22 @@ public class PurchaseOrderItem extends BaseEntity {
 
   @Column(name = "unit_cost", nullable = false, precision = 14, scale = 2)
   private BigDecimal unitCost;
+
+  public int remainingQuantity() {
+    return orderedQuantity - receivedQuantity;
+  }
+
+  public boolean isFullyReceived() {
+    return receivedQuantity >= orderedQuantity;
+  }
+
+  public void receive(int quantity) {
+    if (quantity <= 0) {
+      throw new IllegalArgumentException("Received quantity must be positive");
+    }
+    if (receivedQuantity + quantity > orderedQuantity) {
+      throw new IllegalArgumentException("Received quantity exceeds remaining ordered quantity");
+    }
+    receivedQuantity += quantity;
+  }
 }
-
-

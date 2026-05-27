@@ -3,10 +3,10 @@ package com.arima.pms.service.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.NOT_FOUND)
-public class ResourceNotFoundException extends RuntimeException {
+@ResponseStatus(HttpStatus.CONFLICT)
+public class DuplicateProductException extends RuntimeException {
 
-  public ResourceNotFoundException(String message) {
+  public DuplicateProductException(String message) {
     super(message);
   }
 }

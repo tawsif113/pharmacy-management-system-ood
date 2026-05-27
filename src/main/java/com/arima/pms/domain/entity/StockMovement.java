@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -39,7 +40,7 @@ public class StockMovement extends CreatedAtEntity {
   private String referenceType;
 
   @Column(name = "reference_id", nullable = false)
-  private java.util.UUID referenceId;
+  private UUID referenceId;
 
   @Column(columnDefinition = "text")
   private String reason;
@@ -47,6 +48,27 @@ public class StockMovement extends CreatedAtEntity {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "created_by", nullable = false)
   private User createdBy;
+
+  public static StockMovement receipt(Batch batch, User createdBy, UUID referenceId, String reason) {
+    if (batch == null) {
+      throw new IllegalArgumentException("Batch is required");
+    }
+    if (createdBy == null) {
+      throw new IllegalArgumentException("Created by user is required");
+    }
+    if (referenceId == null) {
+      throw new IllegalArgumentException("Reference id is required");
+    }
+
+    StockMovement movement = new StockMovement();
+    movement.setProduct(batch.getProduct());
+    movement.setBatch(batch);
+    movement.setType(StockMovementType.RECEIPT);
+    movement.setQuantity(batch.getReceivedQuantity());
+    movement.setReferenceType("goods_receipt");
+    movement.setReferenceId(referenceId);
+    movement.setReason(reason);
+    movement.setCreatedBy(createdBy);
+    return movement;
+  }
 }
-
-

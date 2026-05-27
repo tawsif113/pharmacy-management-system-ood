@@ -63,6 +63,55 @@ public class Batch extends BaseEntity {
   @Convert(converter = BatchStatusConverter.class)
   @Column(nullable = false, length = 20)
   private BatchStatus status;
+
+  public static Batch createForReceipt(
+      PurchaseOrderItem purchaseOrderItem,
+      GoodsReceipt goodsReceipt,
+      String batchNumber,
+      LocalDate expiryDate,
+      BigDecimal purchaseCost,
+      BigDecimal sellingPrice,
+      int receivedQuantity,
+      LocalDateTime receivedAt
+  ) {
+    if (purchaseOrderItem == null) {
+      throw new IllegalArgumentException("Purchase order item is required");
+    }
+    if (goodsReceipt == null) {
+      throw new IllegalArgumentException("Goods receipt is required");
+    }
+    if (batchNumber == null || batchNumber.trim().isEmpty()) {
+      throw new IllegalArgumentException("Batch number is required");
+    }
+    if (expiryDate == null) {
+      throw new IllegalArgumentException("Expiry date is required");
+    }
+    if (purchaseCost == null) {
+      throw new IllegalArgumentException("Purchase cost is required");
+    }
+    if (sellingPrice == null) {
+      throw new IllegalArgumentException("Selling price is required");
+    }
+    if (receivedQuantity <= 0) {
+      throw new IllegalArgumentException("Received quantity must be positive");
+    }
+    if (receivedAt == null) {
+      throw new IllegalArgumentException("Received at is required");
+    }
+
+    Batch batch = new Batch();
+    batch.setProduct(purchaseOrderItem.getProduct());
+    batch.setSupplier(purchaseOrderItem.getPurchaseOrder().getSupplier());
+    batch.setPurchaseOrderItem(purchaseOrderItem);
+    batch.setGoodsReceipt(goodsReceipt);
+    batch.setBatchNumber(batchNumber.trim());
+    batch.setExpiryDate(expiryDate);
+    batch.setPurchaseCost(purchaseCost);
+    batch.setSellingPrice(sellingPrice);
+    batch.setReceivedQuantity(receivedQuantity);
+    batch.setAvailableQuantity(receivedQuantity);
+    batch.setReceivedAt(receivedAt);
+    batch.setStatus(BatchStatus.AVAILABLE);
+    return batch;
+  }
 }
-
-

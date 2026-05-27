@@ -1,12 +1,16 @@
 package com.arima.pms.domain.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -31,6 +35,24 @@ public class GoodsReceipt extends BaseEntity {
 
   @Column(columnDefinition = "text")
   private String notes;
+
+  @OneToMany(mappedBy = "goodsReceipt", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<Batch> batches = new ArrayList<>();
+
+  public static GoodsReceipt create(PurchaseOrder purchaseOrder, User receivedBy, LocalDateTime receivedAt, String notes) {
+    GoodsReceipt goodsReceipt = new GoodsReceipt();
+    goodsReceipt.setPurchaseOrder(purchaseOrder);
+    goodsReceipt.setReceivedBy(receivedBy);
+    goodsReceipt.setReceivedAt(receivedAt);
+    goodsReceipt.setNotes(notes);
+    return goodsReceipt;
+  }
+
+  public void addBatch(Batch batch) {
+    if (batch == null) {
+      throw new IllegalArgumentException("Batch is required");
+    }
+    batch.setGoodsReceipt(this);
+    batches.add(batch);
+  }
 }
-
-

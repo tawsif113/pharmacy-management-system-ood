@@ -8,12 +8,10 @@ import static org.mockito.Mockito.when;
 
 import com.arima.pms.domain.entity.Product;
 import com.arima.pms.domain.entity.PurchaseOrder;
-import com.arima.pms.domain.entity.PurchaseOrderItem;
 import com.arima.pms.domain.entity.Supplier;
 import com.arima.pms.domain.entity.User;
 import com.arima.pms.domain.enums.PurchaseOrderStatus;
 import com.arima.pms.repository.ProductRepository;
-import com.arima.pms.repository.PurchaseOrderItemRepository;
 import com.arima.pms.repository.PurchaseOrderRepository;
 import com.arima.pms.repository.SupplierRepository;
 import com.arima.pms.repository.UserRepository;
@@ -37,9 +35,6 @@ class PurchaseOrderServiceTest {
 
   @Mock
   private PurchaseOrderRepository purchaseOrderRepository;
-
-  @Mock
-  private PurchaseOrderItemRepository purchaseOrderItemRepository;
 
   @Mock
   private SupplierRepository supplierRepository;
@@ -70,7 +65,6 @@ class PurchaseOrderServiceTest {
     when(productRepository.findById(productAId)).thenReturn(Optional.of(productA));
     when(productRepository.findById(productBId)).thenReturn(Optional.of(productB));
     when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
-    when(purchaseOrderItemRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     CreatePurchaseOrderCommand command = new CreatePurchaseOrderCommand(
         supplierId,
@@ -90,21 +84,16 @@ class PurchaseOrderServiceTest {
     assertThat(purchaseOrder.getCreatedBy()).isSameAs(creator);
     assertThat(purchaseOrder.getExpectedDeliveryDate()).isEqualTo(LocalDate.of(2026, 6, 15));
     assertThat(purchaseOrder.getTotalEstimatedCost()).isEqualByComparingTo("54.75");
+    assertThat(purchaseOrder.getItems()).hasSize(2);
+    assertThat(purchaseOrder.getItems().get(0).getPurchaseOrder()).isSameAs(purchaseOrder);
+    assertThat(purchaseOrder.getItems().get(0).getProduct()).isSameAs(productA);
+    assertThat(purchaseOrder.getItems().get(0).getOrderedQuantity()).isEqualTo(2);
+    assertThat(purchaseOrder.getItems().get(0).getReceivedQuantity()).isZero();
+    assertThat(purchaseOrder.getItems().get(0).getUnitCost()).isEqualByComparingTo("10.50");
 
     ArgumentCaptor<PurchaseOrder> orderCaptor = ArgumentCaptor.forClass(PurchaseOrder.class);
     verify(purchaseOrderRepository).save(orderCaptor.capture());
     assertThat(orderCaptor.getValue().getPoNumber()).startsWith("PO-");
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<PurchaseOrderItem>> itemsCaptor = ArgumentCaptor.forClass((Class) List.class);
-    verify(purchaseOrderItemRepository).saveAll(itemsCaptor.capture());
-    List<PurchaseOrderItem> savedItems = itemsCaptor.getValue();
-    assertThat(savedItems).hasSize(2);
-    assertThat(savedItems.get(0).getPurchaseOrder()).isSameAs(purchaseOrder);
-    assertThat(savedItems.get(0).getProduct()).isSameAs(productA);
-    assertThat(savedItems.get(0).getOrderedQuantity()).isEqualTo(2);
-    assertThat(savedItems.get(0).getReceivedQuantity()).isZero();
-    assertThat(savedItems.get(0).getUnitCost()).isEqualByComparingTo("10.50");
   }
 
   @Test
