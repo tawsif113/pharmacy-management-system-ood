@@ -114,4 +114,37 @@ public class Batch extends BaseEntity {
     batch.setStatus(BatchStatus.AVAILABLE);
     return batch;
   }
+
+  public int remainingQuantity() {
+    return availableQuantity;
+  }
+
+  public BatchStatus lifecycleStatus() {
+    if (status == BatchStatus.VOIDED) {
+      return BatchStatus.VOIDED;
+    }
+    if (availableQuantity <= 0) {
+      return BatchStatus.DEPLETED;
+    }
+    if (expiryDate != null && expiryDate.isBefore(LocalDate.now())) {
+      return BatchStatus.EXPIRED;
+    }
+    return BatchStatus.AVAILABLE;
+  }
+
+  public void adjustAvailableQuantity(int delta) {
+    if (delta == 0) {
+      throw new IllegalArgumentException("Quantity change must not be zero");
+    }
+    int updated = availableQuantity + delta;
+    if (updated < 0) {
+      throw new IllegalArgumentException("Quantity change exceeds available stock");
+    }
+    availableQuantity = updated;
+    status = lifecycleStatus();
+  }
+
+  public boolean isLowStock(int reorderLevel) {
+    return availableQuantity <= reorderLevel;
+  }
 }

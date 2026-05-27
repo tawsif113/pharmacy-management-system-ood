@@ -36,6 +36,9 @@ public class StockMovement extends CreatedAtEntity {
   @Column(nullable = false)
   private int quantity;
 
+  @Column(name = "delta_quantity", nullable = false)
+  private int deltaQuantity;
+
   @Column(name = "reference_type", nullable = false, length = 50)
   private String referenceType;
 
@@ -65,10 +68,71 @@ public class StockMovement extends CreatedAtEntity {
     movement.setBatch(batch);
     movement.setType(StockMovementType.RECEIPT);
     movement.setQuantity(batch.getReceivedQuantity());
+    movement.setDeltaQuantity(batch.getReceivedQuantity());
     movement.setReferenceType("goods_receipt");
     movement.setReferenceId(referenceId);
     movement.setReason(reason);
     movement.setCreatedBy(createdBy);
     return movement;
+  }
+
+  public static StockMovement adjustment(Batch batch, User createdBy, UUID referenceId, String reason, int deltaQuantity) {
+    validateStockMovement(batch, createdBy, referenceId, deltaQuantity);
+    StockMovement movement = new StockMovement();
+    movement.setProduct(batch.getProduct());
+    movement.setBatch(batch);
+    movement.setType(StockMovementType.ADJUSTMENT);
+    movement.setQuantity(Math.abs(deltaQuantity));
+    movement.setDeltaQuantity(deltaQuantity);
+    movement.setReferenceType("inventory_adjustment");
+    movement.setReferenceId(referenceId);
+    movement.setReason(reason);
+    movement.setCreatedBy(createdBy);
+    return movement;
+  }
+
+  public static StockMovement returned(Batch batch, User createdBy, UUID referenceId, String reason, int deltaQuantity) {
+    validateStockMovement(batch, createdBy, referenceId, deltaQuantity);
+    StockMovement movement = new StockMovement();
+    movement.setProduct(batch.getProduct());
+    movement.setBatch(batch);
+    movement.setType(StockMovementType.RETURNED);
+    movement.setQuantity(Math.abs(deltaQuantity));
+    movement.setDeltaQuantity(deltaQuantity);
+    movement.setReferenceType("inventory_return");
+    movement.setReferenceId(referenceId);
+    movement.setReason(reason);
+    movement.setCreatedBy(createdBy);
+    return movement;
+  }
+
+  public static StockMovement writeOff(Batch batch, User createdBy, UUID referenceId, String reason, int deltaQuantity) {
+    validateStockMovement(batch, createdBy, referenceId, deltaQuantity);
+    StockMovement movement = new StockMovement();
+    movement.setProduct(batch.getProduct());
+    movement.setBatch(batch);
+    movement.setType(StockMovementType.WRITE_OFF);
+    movement.setQuantity(Math.abs(deltaQuantity));
+    movement.setDeltaQuantity(deltaQuantity);
+    movement.setReferenceType("inventory_write_off");
+    movement.setReferenceId(referenceId);
+    movement.setReason(reason);
+    movement.setCreatedBy(createdBy);
+    return movement;
+  }
+
+  private static void validateStockMovement(Batch batch, User createdBy, UUID referenceId, int deltaQuantity) {
+    if (batch == null) {
+      throw new IllegalArgumentException("Batch is required");
+    }
+    if (createdBy == null) {
+      throw new IllegalArgumentException("Created by user is required");
+    }
+    if (referenceId == null) {
+      throw new IllegalArgumentException("Reference id is required");
+    }
+    if (deltaQuantity == 0) {
+      throw new IllegalArgumentException("Quantity change must not be zero");
+    }
   }
 }
