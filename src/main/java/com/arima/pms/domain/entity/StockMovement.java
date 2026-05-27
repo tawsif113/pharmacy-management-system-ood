@@ -121,6 +121,36 @@ public class StockMovement extends CreatedAtEntity {
     return movement;
   }
 
+  public static StockMovement sale(Batch batch, User createdBy, UUID referenceId, String reason, int deltaQuantity) {
+    validateStockMovement(batch, createdBy, referenceId, deltaQuantity);
+    StockMovement movement = new StockMovement();
+    movement.setProduct(batch.getProduct());
+    movement.setBatch(batch);
+    movement.setType(StockMovementType.SALE);
+    movement.setQuantity(Math.abs(deltaQuantity));
+    movement.setDeltaQuantity(deltaQuantity);
+    movement.setReferenceType("sale");
+    movement.setReferenceId(referenceId);
+    movement.setReason(reason);
+    movement.setCreatedBy(createdBy);
+    return movement;
+  }
+
+  public static StockMovement cancelled(Batch batch, User createdBy, UUID referenceId, String reason, int deltaQuantity) {
+    validateStockMovement(batch, createdBy, referenceId, deltaQuantity);
+    StockMovement movement = new StockMovement();
+    movement.setProduct(batch.getProduct());
+    movement.setBatch(batch);
+    movement.setType(StockMovementType.CANCELLED);
+    movement.setQuantity(Math.abs(deltaQuantity));
+    movement.setDeltaQuantity(deltaQuantity);
+    movement.setReferenceType("sale_void");
+    movement.setReferenceId(referenceId);
+    movement.setReason(reason);
+    movement.setCreatedBy(createdBy);
+    return movement;
+  }
+
   private static void validateStockMovement(Batch batch, User createdBy, UUID referenceId, int deltaQuantity) {
     if (batch == null) {
       throw new IllegalArgumentException("Batch is required");
