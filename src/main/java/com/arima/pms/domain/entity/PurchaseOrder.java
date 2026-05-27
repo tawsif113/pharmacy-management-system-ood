@@ -76,8 +76,30 @@ public class PurchaseOrder extends BaseEntity {
     return item;
   }
 
+  public boolean canApprove() {
+    return status == PurchaseOrderStatus.DRAFT;
+  }
+
   public boolean canReceive() {
     return status == PurchaseOrderStatus.APPROVED || status == PurchaseOrderStatus.PARTIALLY_RECEIVED;
+  }
+
+  public boolean canCancel() {
+    return status != PurchaseOrderStatus.RECEIVED && status != PurchaseOrderStatus.CANCELLED;
+  }
+
+  public void approve() {
+    if (!canApprove()) {
+      throw new IllegalStateException("Only draft purchase orders can be approved");
+    }
+    status = PurchaseOrderStatus.APPROVED;
+  }
+
+  public void cancel() {
+    if (!canCancel()) {
+      throw new IllegalStateException("Purchase order cannot be cancelled in its current state");
+    }
+    status = PurchaseOrderStatus.CANCELLED;
   }
 
   public PurchaseOrderItem findItemById(UUID itemId) {

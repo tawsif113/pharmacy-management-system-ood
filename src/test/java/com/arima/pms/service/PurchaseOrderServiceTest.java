@@ -3,6 +3,7 @@ package com.arima.pms.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +30,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class PurchaseOrderServiceTest {
@@ -97,6 +102,57 @@ class PurchaseOrderServiceTest {
   }
 
   @Test
+  void get_returnsPurchaseOrder() {
+    UUID id = UUID.randomUUID();
+    PurchaseOrder purchaseOrder = purchaseOrder(PurchaseOrderStatus.DRAFT);
+    purchaseOrder.setId(id);
+    when(purchaseOrderRepository.findById(id)).thenReturn(Optional.of(purchaseOrder));
+
+    PurchaseOrder actual = purchaseOrderService.get(id);
+
+    assertThat(actual).isSameAs(purchaseOrder);
+  }
+
+  @Test
+  void list_returnsFilteredPage() {
+    PurchaseOrder purchaseOrder = purchaseOrder(PurchaseOrderStatus.APPROVED);
+    when(purchaseOrderRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(
+        new PageImpl<>(List.of(purchaseOrder))
+    );
+
+    assertThat(purchaseOrderService.list("PO", PurchaseOrderStatus.APPROVED, UUID.randomUUID(), PageRequest.of(0, 20))).hasSize(1);
+    verify(purchaseOrderRepository).findAll(any(Specification.class), any(Pageable.class));
+  }
+
+  @Test
+  void approve_marksDraftOrderApproved() {
+    UUID id = UUID.randomUUID();
+    PurchaseOrder purchaseOrder = purchaseOrder(PurchaseOrderStatus.DRAFT);
+    purchaseOrder.setId(id);
+    when(purchaseOrderRepository.findById(id)).thenReturn(Optional.of(purchaseOrder));
+    when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    PurchaseOrder actual = purchaseOrderService.approve(id);
+
+    assertThat(actual.getStatus()).isEqualTo(PurchaseOrderStatus.APPROVED);
+    verify(purchaseOrderRepository).save(purchaseOrder);
+  }
+
+  @Test
+  void cancel_marksApprovedOrderCancelled() {
+    UUID id = UUID.randomUUID();
+    PurchaseOrder purchaseOrder = purchaseOrder(PurchaseOrderStatus.APPROVED);
+    purchaseOrder.setId(id);
+    when(purchaseOrderRepository.findById(id)).thenReturn(Optional.of(purchaseOrder));
+    when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    PurchaseOrder actual = purchaseOrderService.cancel(id);
+
+    assertThat(actual.getStatus()).isEqualTo(PurchaseOrderStatus.CANCELLED);
+    verify(purchaseOrderRepository).save(purchaseOrder);
+  }
+
+  @Test
   void createDraftPurchaseOrder_rejectsDuplicateProducts() {
     UUID supplierId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
@@ -142,6 +198,15 @@ class PurchaseOrderServiceTest {
     );
 
     assertThat(exception.getMessage()).contains("at least one line");
+  }
+
+  private static PurchaseOrder purchaseOrder(PurchaseOrderStatus status) {
+    PurchaseOrder purchaseOrder = new PurchaseOrder();
+    purchaseOrder.setPoNumber("PO-20260527-ABC12345");
+    purchaseOrder.setSupplier(supplier(UUID.randomUUID(), true));
+    purchaseOrder.setStatus(status);
+    purchaseOrder.setCreatedBy(user(UUID.randomUUID(), true));
+    return purchaseOrder;
   }
 
   private static Supplier supplier(UUID id, boolean active) {

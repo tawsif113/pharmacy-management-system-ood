@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -79,12 +82,62 @@ public class GoodsReceiptService {
       receipt.addBatch(batch);
     }
 
-    GoodsReceipt savedReceipt = goodsReceiptRepository.save(receipt);
+    GoodsReceipt savedReceipt = goodsReceiptRepository.saveAndFlush(receipt);
     for (Batch batch : savedReceipt.getBatches()) {
       movements.add(StockMovement.receipt(batch, receivedBy, savedReceipt.getId(), buildReason(command.notes())));
     }
     stockMovementRepository.saveAll(movements);
+    hydrateForResponse(savedReceipt);
     return savedReceipt;
+  }
+
+  @Transactional(readOnly = true)
+  public GoodsReceipt get(UUID id) {
+    if (id == null) {
+      throw new InvalidGoodsReceiptException("Goods receipt id is required");
+    }
+    GoodsReceipt receipt = goodsReceiptRepository.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Goods receipt not found: " + id));
+    hydrateForResponse(receipt);
+    return receipt;
+  }
+
+  @Transactional(readOnly = true)
+  public Page<GoodsReceipt> list(UUID purchaseOrderId, UUID receivedByUserId, Pageable pageable) {
+    Specification<GoodsReceipt> specification = (root, query, cb) -> cb.conjunction();
+    if (purchaseOrderId != null) {
+      specification = specification.and((root, query, cb) -> cb.equal(root.join("purchaseOrder").get("id"), purchaseOrderId));
+    }
+    if (receivedByUserId != null) {
+      specification = specification.and((root, query, cb) -> cb.equal(root.join("receivedBy").get("id"), receivedByUserId));
+    }
+    Page<GoodsReceipt> page = goodsReceiptRepository.findAll(specification, pageable);
+    page.forEach(GoodsReceiptService::hydrateForResponse);
+    return page;
+  }
+
+  private static void hydrateForResponse(GoodsReceipt receipt) {
+    if (receipt == null) {
+      return;
+    }
+    if (receipt.getPurchaseOrder() != null) {
+      receipt.getPurchaseOrder().getPoNumber();
+      if (receipt.getPurchaseOrder().getSupplier() != null) {
+        receipt.getPurchaseOrder().getSupplier().getName();
+      }
+    }
+    if (receipt.getReceivedBy() != null) {
+      receipt.getReceivedBy().getFullName();
+    }
+    receipt.getBatches().forEach(batch -> {
+      if (batch.getProduct() != null) {
+        batch.getProduct().getName();
+        batch.getProduct().getSkuBarcode();
+      }
+      if (batch.getPurchaseOrderItem() != null) {
+        batch.getPurchaseOrderItem().getId();
+      }
+    });
   }
 
   private static void validateLine(GoodsReceiptLineCommand line) {

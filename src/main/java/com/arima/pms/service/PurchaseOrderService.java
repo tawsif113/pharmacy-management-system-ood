@@ -1,7 +1,7 @@
 package com.arima.pms.service;
 
-import com.arima.pms.domain.entity.Product;
 import com.arima.pms.domain.entity.PurchaseOrder;
+import com.arima.pms.domain.entity.Product;
 import com.arima.pms.domain.entity.Supplier;
 import com.arima.pms.domain.entity.User;
 import com.arima.pms.domain.enums.PurchaseOrderStatus;
@@ -19,9 +19,13 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -79,7 +83,87 @@ public class PurchaseOrderService {
       purchaseOrder.addItem(product, line.orderedQuantity(), line.unitCost());
     }
 
-    return purchaseOrderRepository.save(purchaseOrder);
+    PurchaseOrder saved = purchaseOrderRepository.save(purchaseOrder);
+    hydrateForResponse(saved);
+    return saved;
+  }
+
+  @Transactional(readOnly = true)
+  public PurchaseOrder get(UUID id) {
+    PurchaseOrder purchaseOrder = loadPurchaseOrder(id);
+    hydrateForResponse(purchaseOrder);
+    return purchaseOrder;
+  }
+
+  @Transactional(readOnly = true)
+  public Page<PurchaseOrder> list(String search, PurchaseOrderStatus status, UUID supplierId, Pageable pageable) {
+    Specification<PurchaseOrder> specification = (root, query, cb) -> cb.conjunction();
+    if (StringUtils.hasText(search)) {
+      String term = search.trim().toLowerCase();
+      specification = specification.and((root, query, cb) -> cb.or(
+          cb.like(cb.lower(root.get("poNumber")), "%%" + term + "%%"),
+          cb.like(cb.lower(root.join("supplier").get("name")), "%%" + term + "%%")
+      ));
+    }
+    if (status != null) {
+      specification = specification.and((root, query, cb) -> cb.equal(root.get("status"), status));
+    }
+    if (supplierId != null) {
+      specification = specification.and((root, query, cb) -> cb.equal(root.join("supplier").get("id"), supplierId));
+    }
+    Page<PurchaseOrder> page = purchaseOrderRepository.findAll(specification, pageable);
+    page.forEach(PurchaseOrderService::hydrateForResponse);
+    return page;
+  }
+
+  public PurchaseOrder approve(UUID id) {
+    PurchaseOrder purchaseOrder = loadPurchaseOrder(id);
+    try {
+      purchaseOrder.approve();
+    } catch (IllegalStateException ex) {
+      throw new InvalidPurchaseOrderException(ex.getMessage());
+    }
+    PurchaseOrder saved = purchaseOrderRepository.save(purchaseOrder);
+    hydrateForResponse(saved);
+    return saved;
+  }
+
+  public PurchaseOrder cancel(UUID id) {
+    PurchaseOrder purchaseOrder = loadPurchaseOrder(id);
+    try {
+      purchaseOrder.cancel();
+    } catch (IllegalStateException ex) {
+      throw new InvalidPurchaseOrderException(ex.getMessage());
+    }
+    PurchaseOrder saved = purchaseOrderRepository.save(purchaseOrder);
+    hydrateForResponse(saved);
+    return saved;
+  }
+
+  private PurchaseOrder loadPurchaseOrder(UUID id) {
+    if (id == null) {
+      throw new InvalidPurchaseOrderException("Purchase order id is required");
+    }
+    return purchaseOrderRepository.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Purchase order not found: " + id));
+  }
+
+  private static void hydrateForResponse(PurchaseOrder purchaseOrder) {
+    if (purchaseOrder == null) {
+      return;
+    }
+    if (purchaseOrder.getSupplier() != null) {
+      purchaseOrder.getSupplier().getName();
+    }
+    if (purchaseOrder.getCreatedBy() != null) {
+      purchaseOrder.getCreatedBy().getFullName();
+    }
+    purchaseOrder.getItems().forEach(item -> {
+      if (item.getProduct() != null) {
+        item.getProduct().getName();
+        item.getProduct().getSkuBarcode();
+      }
+    });
   }
 
   private static void validateLine(PurchaseOrderLineCommand line) {
